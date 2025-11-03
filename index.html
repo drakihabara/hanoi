@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ハノイの塔 (JavaScript)</title>
+    <style>
+        body {
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        canvas {
+            background-color: #FAF8EF; /* COLOR_BACKGROUND */
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="gameCanvas" width="800" height="500"></canvas>
+
+<script>
+    // --- 定数 ---
+    const SCREEN_WIDTH = 800;
+    const SCREEN_HEIGHT = 500;
+
+    // ★★★ 円盤の数 (ここで難易度を変更できます) ★★★
+    const NUM_DISKS = 4;
+
+    // 色の定義 (Pygame版デザインの再現)
+    const COLOR_PEG = "#8B4513";         // (139, 69, 19) BROWN
+    const COLOR_DISK_OUTLINE = "#000000";   // BLACK
+    const COLOR_TEXT = "#000000";
+    const COLOR_HIGHLIGHT = "#FFC107";    // (255, 193, 7) YELLOW_AMBER
+    const COLOR_WIN_BG = "rgba(245, 245, 245, 0.8)"; // (245, 245, 245, 200)
+
+    // 円盤の色
+    const DISK_COLORS = [
+        "#D00000",   // (208, 0, 0) RED_DEVIL
+        "#FFA500",   // (255, 165, 0) ORANGE_PEEL
+        "#FFD700",   // (255, 215, 0) YELLOW_ORANGE
+        "#008000",   // (0, 128, 0) KELLY_GREEN
+        "#0047AB",   // (0, 71, 171) BLUE_SAPPHIRE
+        "#8A2BE2",   // (138, 43, 226) VIOLET
+        "#FFB6C1"    // (255, 182, 193) PINK_LACE
+    ];
+
+    // 円盤の見た目
+    const DISK_HEIGHT = 30;
+    const MIN_DISK_WIDTH = 60;
+    const DISK_WIDTH_STEP = 30;
+
+    // 杭の見た目 (Pygame版の座標系をCanvasにマッピング)
+    const PEG_WIDTH = 15;
+    const PEG_HEIGHT = 300;
+    const PEG_Y_BOTTOM = 380; // 杭の土台の下端Y座標 (Pygame版と同じ)
+    const PEG_X_CENTERS = [SCREEN_WIDTH / 4, SCREEN_WIDTH / 2, SCREEN_WIDTH * 3 / 4];
+    
+    // 土台の高さ
+    const BASE_HEIGHT = 20;
+
+    class HanoiGame {
+        constructor(canvasId, numDisks) {
+            this.canvas = document.getElementById(canvasId);
+            this.ctx = this.canvas.getContext('2d');
+            
+            if (numDisks > DISK_COLORS.length) {
+                throw new Error(`円盤の色が足りません。最大 ${DISK_COLORS.length} 個までです。`);
+            }
+            this.numDisks = numDisks;
+            this.optimalMoves = (2 ** numDisks) - 1;
+
+            // フォント設定
+            // PygameのSysFont('yugothic', 50) をCSSで再現
+            this.fontLarge = "50px 'Yu Gothic', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif";
+            this.fontMedium = "24px 'Yu Gothic', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif";
+            
+            this.setup();
+            this.initEvents();
+            this.run();
+        }
+
+        setup() {
+            this.pegs = [[] for _ in range(3)];
+            this.pegs[0] = Array.from({ length: this.numDisks }, (_, i) => this.numDisks - i); // [4, 3, 2, 1]
+            
+            this.selectedPeg = null;
+            this.moveCount = 0;
+            this.isWin = false;
+            this.startTime = performance.now();
+            this.totalTime = 0;
+        }
+
+        initEvents() {
+            // マウスクリックのイベントリスナー
+            this.canvas.addEventListener('click', (event) => {
+                const rect = this.canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                this.handleClick(x);
+            });
+
+            // キー入力のイベントリスナー
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'r' || event.key === 'R') {
+                    this.setup();
+                }
+            });
+        }
+
+        getPegAtX(x) {
+            const maxWidth = MIN_DISK_WIDTH + (this.numDisks - 1) * DISK_WIDTH_STEP;
+            const clickMargin = maxWidth / 2;
+
+            for (let i = 0; i < PEG_X_CENTERS.length; i++) {
+                if (Math.abs(x - PEG_X_CENTERS[i]) < clickMargin) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        handleClick(x) {
+            if (this.isWin) {
+                this.setup();
+                return;
+            }
+
+            const clickedPegIdx = this.getPegAtX(x);
+
+            if (clickedPegIdx === -1) {
+                this.selectedPeg = null;
+                return;
+            }
+
+            if (this.selectedPeg === null) {
+                // 1回目のクリック (移動元)
+                if (this.pegs[clickedPegIdx].length > 0) { // 空の杭は選択不可
+                    this.selectedPeg = clickedPegIdx;
+                }
+            } else {
+                // 2回目のクリック (移動先)
+                this.moveDisk(this.selectedPeg, clickedPegIdx);
+                this.selectedPeg = null; // 選択解除
+            }
+        }
+
+        moveDisk(fromIdx, toIdx) {
+            if (fromIdx === toIdx) return;
+
+            const fromStack = this.pegs[fromIdx];
+            const toStack = this.pegs[toIdx];
+
+            if (fromStack.length === 0) return; // 移動元が空
+
+            const diskToMove = fromStack[fromStack.length - 1]; // 一番上の円盤
+
+            if (toStack.length === 0 || diskToMove < toStack[toStack.length - 1]) {
+                // 有効な移動
+                const disk = fromStack.pop();
+                toStack.push(disk);
+                this.moveCount++;
+                this.checkWin();
+            } else {
+                // 無効な移動 (小さい円盤の上には置けない)
+                // (サイレントに失敗)
+            }
+        }
+
+        checkWin() {
+            if (this.pegs[1].length === this.numDisks || this.pegs[2].length === this.numDisks) {
+                this.isWin = true;
+                this.totalTime = (performance.now() - this.startTime) / 1000; // 秒に変換
+            }
+        }
+
+        // メインループ
+        run() {
+            this.draw();
+            // 次のフレームを要求
+            requestAnimationFrame(() => this.run());
+        }
+
+        // --- 描画関数 ---
+
+        drawText(text, x, y, font, color, align = "center") {
+            this.ctx.fillStyle = color;
+            this.ctx.font = font;
+            this.ctx.textAlign = align;
+            this.ctx.textBaseline = "middle";
+            this.ctx.fillText(text, x, y);
+        }
+
+        draw() {
+            // 画面をクリア (Pygameの .fill(COLOR_BACKGROUND) と同じ)
+            this.ctx.clearRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+            // --- 杭の描画 ---
+            this.ctx.fillStyle = COLOR_PEG;
+            PEG_X_CENTERS.forEach(x_center => {
+                // 土台 (Left, Top, Width, Height)
+                const baseWidth = SCREEN_WIDTH / 3.5;
+                const baseLeft = x_center - baseWidth / 2;
+                const baseTop = PEG_Y_BOTTOM - BASE_HEIGHT;
+                this.ctx.fillRect(baseLeft, baseTop, baseWidth, BASE_HEIGHT);
+                
+                // 棒
+                const pegLeft = x_center - PEG_WIDTH / 2;
+                const pegTop = PEG_Y_BOTTOM - BASE_HEIGHT - PEG_HEIGHT;
+                this.ctx.fillRect(pegLeft, pegTop, PEG_WIDTH, PEG_HEIGHT);
+            });
+
+            // --- 選択中ハイライトの描画 ---
+            if (this.selectedPeg !== null) {
+                const x_center = PEG_X_CENTERS[this.selectedPeg];
+                const hlWidth = PEG_WIDTH + 15;
+                const hlHeight = PEG_HEIGHT + 15;
+                const hlLeft = x_center - hlWidth / 2;
+                const hlTop = PEG_Y_BOTTOM - BASE_HEIGHT - PEG_HEIGHT - (hlHeight - PEG_HEIGHT) / 2;
+                
+                this.ctx.strokeStyle = COLOR_HIGHLIGHT;
+                this.ctx.lineWidth = 5;
+                this.ctx.strokeRect(hlLeft, hlTop, hlWidth, hlHeight);
+            }
+
+            // --- 円盤の描画 ---
+            this.pegs.forEach((stack, pegIdx) => {
+                const peg_x_center = PEG_X_CENTERS[pegIdx];
+                
+                stack.forEach((diskSize, diskIdx) => {
+                    const diskWidth = MIN_DISK_WIDTH + (diskSize - 1) * DISK_WIDTH_STEP;
+                    const diskLeft = peg_x_center - diskWidth / 2;
+                    // Y座標は「下」から積み上げる
+                    const diskTop = PEG_Y_BOTTOM - BASE_HEIGHT - (diskIdx * DISK_HEIGHT) - DISK_HEIGHT;
+                    
+                    const color = DISK_COLORS[diskSize - 1];
+                    
+                    // 塗りつぶし
+                    this.ctx.fillStyle = color;
+                    this.ctx.fillRect(diskLeft, diskTop, diskWidth, DISK_HEIGHT);
+                    
+                    // 枠線
+                    this.ctx.strokeStyle = COLOR_DISK_OUTLINE;
+                    this.ctx.lineWidth = 2;
+                    this.ctx.strokeRect(diskLeft, diskTop, diskWidth, DISK_HEIGHT);
+                });
+            });
+
+            // --- クリアメッセージの描画 ---
+            if (this.isWin) {
+                const boxWidth = 450;
+                const boxHeight = 200;
+                const boxLeft = (SCREEN_WIDTH / 2) - boxWidth / 2;
+                const boxTop = (SCREEN_HEIGHT / 2) - boxHeight / 2;
+                
+                // 半透明の背景 (Pygameの draw_rect_alpha と同じ)
+                this.ctx.fillStyle = COLOR_WIN_BG;
+                this.ctx.fillRect(boxLeft, boxTop, boxWidth, boxHeight);
+                
+                // テキスト
+                this.drawText("CLEAR!", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 30, this.fontLarge, COLOR_TEXT);
+                
+                const timeStr = `${this.totalTime.toFixed(2)} 秒`;
+                this.drawText(`タイム: ${timeStr}`, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 30, this.fontMedium, COLOR_TEXT);
+
+                const resultText = `移動回数: ${this.moveCount} (最短: ${this.optimalMoves})`;
+                this.drawText(resultText, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 70, this.fontMedium, COLOR_TEXT);
+            }
+        }
+    }
+
+    // ゲームの開始
+    const game = new HanoiGame('gameCanvas', NUM_DISKS);
+
+</script>
+
+</body>
+</html>
