@@ -12,11 +12,16 @@
             justify-content: center;
             align-items: center;
             margin: 0;
-            padding-top: 20px;
+            /* ★★★ 上部余白を少し縮小 ★★★ */
+            padding-top: 10px; 
             font-family: 'Yu Gothic', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+            /* ★★★ スクロールを厳密に禁止 ★★★ */
+            height: 100vh;
+            overflow: hidden;
         }
         #controls {
-            margin-bottom: 15px;
+            /* ★★★ 下部マージンを少し縮小 ★★★ */
+            margin-bottom: 10px;
         }
         #controls label {
             font-size: 22px; 
@@ -52,13 +57,13 @@
     <button id="btn10">10枚</button>
 </div>
 
-<canvas id="gameCanvas" width="500" height="700"></canvas>
+<canvas id="gameCanvas" width="500" height="600"></canvas>
 
 <script>
     // --- 定数 ---
-    // ★★★ 画面サイズを 500x700 に変更 ★★★
+    // ★★★ 画面サイズを 500x600 に変更 ★★★
     const SCREEN_WIDTH = 500;
-    const SCREEN_HEIGHT = 700;
+    const SCREEN_HEIGHT = 600;
 
     const COLOR_PEG = "#8B4513";
     const COLOR_DISK_OUTLINE = "#000000";
@@ -72,14 +77,16 @@
     ];
 
     // --- レイアウト調整 ---
-    const DISK_HEIGHT = 28;
+    // ★★★ 円盤の高さを少し縮小 ★★★
+    const DISK_HEIGHT = 25;     // (旧 28)
     const MIN_DISK_WIDTH = 40;
     const DISK_WIDTH_STEP = 10; 
 
     const PEG_WIDTH = 15;
-    const PEG_HEIGHT = 350;
-    // ★★★ Y座標を 700px 画面に合わせる ★★★
-    const PEG_Y_BOTTOM = 600;   // Y座標を画面下部に (旧 650)
+    // ★★★ 杭の高さを少し縮小 ★★★
+    const PEG_HEIGHT = 300;     // (旧 350)
+    // ★★★ Y座標を 600px 画面に合わせる ★★★
+    const PEG_Y_BOTTOM = 500;   // (旧 600)
     
     const PEG_X_CENTERS = [SCREEN_WIDTH * 0.2, SCREEN_WIDTH / 2, SCREEN_WIDTH * 0.8]; 
     const BASE_HEIGHT = 20;
@@ -122,10 +129,11 @@
         }
 
         initEvents() {
+            // (変更なし)
             this.canvas.addEventListener('click', (event) => {
                 const rect = this.canvas.getBoundingClientRect();
                 const clientX = event.clientX || (event.touches && event.touches[0].clientX);
-                if (clientX === undefined) return; // クリック/タッチでない場合は無視
+                if (clientX === undefined) return;
                 
                 const x = clientX - rect.left;
                 
@@ -141,8 +149,8 @@
         }
 
         getPegAtX(x) {
+            // (変更なし)
             const clickMargin = (PEG_X_CENTERS[1] - PEG_X_CENTERS[0]) / 2; 
-
             for (let i = 0; i < PEG_X_CENTERS.length; i++) {
                 if (Math.abs(x - PEG_X_CENTERS[i]) < clickMargin) {
                     return i;
@@ -152,18 +160,16 @@
         }
 
         handleClick(x) {
+            // (変更なし)
             if (this.isWin) {
                 this.setup();
                 return;
             }
-
             const clickedPegIdx = this.getPegAtX(x);
-
             if (clickedPegIdx === -1) {
                 this.selectedPeg = null;
                 return;
             }
-
             if (this.selectedPeg === null) {
                 if (this.pegs[clickedPegIdx].length > 0) {
                     this.selectedPeg = clickedPegIdx;
@@ -175,6 +181,7 @@
         }
 
         moveDisk(fromIdx, toIdx) {
+            // (変更なし)
             if (fromIdx === toIdx) return;
             const fromStack = this.pegs[fromIdx];
             const toStack = this.pegs[toIdx];
@@ -189,6 +196,7 @@
         }
 
         checkWin() {
+            // (変更なし)
             if (this.pegs[1].length === this.numDisks || this.pegs[2].length === this.numDisks) {
                 this.isWin = true;
                 this.totalTime = (performance.now() - this.startTime) / 1000;
@@ -201,6 +209,7 @@
         }
 
         drawText(text, x, y, font, color, align = "center") {
+            // (変更なし)
             this.ctx.fillStyle = color;
             this.ctx.font = font;
             this.ctx.textAlign = align;
@@ -211,7 +220,7 @@
         draw() {
             this.ctx.clearRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-            // --- 杭の描画 ---
+            // --- 杭の描画 (変更なし) ---
             this.ctx.fillStyle = COLOR_PEG;
             PEG_X_CENTERS.forEach(x_center => {
                 const baseWidth = (PEG_X_CENTERS[1] - PEG_X_CENTERS[0]) + (MIN_DISK_WIDTH / 2);
@@ -224,7 +233,7 @@
                 this.ctx.fillRect(pegLeft, pegTop, PEG_WIDTH, PEG_HEIGHT);
             });
 
-            // --- 選択中ハイライトの描画 ---
+            // --- 選択中ハイライトの描画 (変更なし) ---
             if (this.selectedPeg !== null) {
                 const x_center = PEG_X_CENTERS[this.selectedPeg];
                 const hlWidth = PEG_WIDTH + 15;
@@ -237,7 +246,7 @@
                 this.ctx.strokeRect(hlLeft, hlTop, hlWidth, hlHeight);
             }
 
-            // --- 円盤の描画 ---
+            // --- 円盤の描画 (変更なし) ---
             this.pegs.forEach((stack, pegIdx) => {
                 const peg_x_center = PEG_X_CENTERS[pegIdx];
                 
@@ -263,11 +272,11 @@
                 const boxWidth = 450;
                 const boxHeight = 250;
                 
-                // ★★★ クリア画面を杭の中心に合わせる ★★★
-                const gameAreaTop = PEG_Y_BOTTOM - BASE_HEIGHT - PEG_HEIGHT;
-                const gameAreaCenterY = gameAreaTop + (PEG_HEIGHT / 2);
-                const boxTop = gameAreaCenterY - (boxHeight / 2); // (旧 (SCREEN_HEIGHT / 2) - ... )
-
+                // ★★★ クリア画面を杭の中心に合わせる (Y座標 500基準) ★★★
+                const gameAreaTop = PEG_Y_BOTTOM - BASE_HEIGHT - PEG_HEIGHT; // 500 - 20 - 300 = 180
+                const gameAreaCenterY = gameAreaTop + (PEG_HEIGHT / 2);      // 180 + 150 = 330
+                const boxLeft = (SCREEN_WIDTH / 2) - boxWidth / 2;
+                const boxTop = gameAreaCenterY - (boxHeight / 2);          // 330 - 125 = 205
                 
                 this.ctx.fillStyle = COLOR_WIN_BG;
                 this.ctx.fillRect(boxLeft, boxTop, boxWidth, boxHeight);
