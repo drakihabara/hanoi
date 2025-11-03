@@ -74,7 +74,6 @@
             this.optimalMoves = (2 ** numDisks) - 1;
 
             // フォント設定
-            // PygameのSysFont('yugothic', 50) をCSSで再現
             this.fontLarge = "50px 'Yu Gothic', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif";
             this.fontMedium = "24px 'Yu Gothic', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif";
             
@@ -84,7 +83,9 @@
         }
 
         setup() {
-            this.pegs = [[] for _ in range(3)];
+            // ★★★ 修正点: Pythonの構文 [[] for _ in range(3)] を修正 ★★★
+            this.pegs = [[], [], []];
+            
             this.pegs[0] = Array.from({ length: this.numDisks }, (_, i) => this.numDisks - i); // [4, 3, 2, 1]
             
             this.selectedPeg = null;
@@ -165,7 +166,6 @@
                 this.checkWin();
             } else {
                 // 無効な移動 (小さい円盤の上には置けない)
-                // (サイレントに失敗)
             }
         }
 
@@ -194,7 +194,7 @@
         }
 
         draw() {
-            // 画面をクリア (Pygameの .fill(COLOR_BACKGROUND) と同じ)
+            // 画面をクリア
             this.ctx.clearRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
             // --- 杭の描画 ---
@@ -255,7 +255,7 @@
                 const boxLeft = (SCREEN_WIDTH / 2) - boxWidth / 2;
                 const boxTop = (SCREEN_HEIGHT / 2) - boxHeight / 2;
                 
-                // 半透明の背景 (Pygameの draw_rect_alpha と同じ)
+                // 半透明の背景
                 this.ctx.fillStyle = COLOR_WIN_BG;
                 this.ctx.fillRect(boxLeft, boxTop, boxWidth, boxHeight);
                 
