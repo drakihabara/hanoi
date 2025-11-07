@@ -12,15 +12,12 @@
             justify-content: center;
             align-items: center;
             margin: 0;
-            /* ★★★ 上部余白を少し縮小 ★★★ */
             padding-top: 10px; 
             font-family: 'Yu Gothic', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
-            /* ★★★ スクロールを厳密に禁止 ★★★ */
             height: 100vh;
             overflow: hidden;
         }
         #controls {
-            /* ★★★ 下部マージンを少し縮小 ★★★ */
             margin-bottom: 10px;
         }
         #controls label {
@@ -54,14 +51,13 @@
     <label>円盤の枚数:</label>
     <button id="btn3">3枚</button>
     <button id="btn5">5枚</button>
-    <button id="btn10">10枚</button>
+    <button id="btn14">14枚</button>
 </div>
 
 <canvas id="gameCanvas" width="500" height="600"></canvas>
 
 <script>
     // --- 定数 ---
-    // ★★★ 画面サイズを 500x600 に変更 ★★★
     const SCREEN_WIDTH = 500;
     const SCREEN_HEIGHT = 600;
 
@@ -71,24 +67,33 @@
     const COLOR_HIGHLIGHT = "#FFC107";
     const COLOR_WIN_BG = "rgba(245, 245, 245, 0.8)";
 
-    const DISK_COLORS = [
-        "#D00000", "#FFA500", "#FFD700", "#008000", "#0047AB",
-        "#8A2BE2", "#FFB6C1", "#FF1493", "#4B0082", "#A9A9A9"
+    // ★★★ 円盤の色 (虹色7色 x 2段 = 14色) ★★★
+    const RAINBOW_COLORS = [
+        "#FF0000", // 赤
+        "#FFA500", // 橙
+        "#FFFF00", // 黄
+        "#008000", // 緑
+        "#0000FF", // 青
+        "#4B0082", // 藍 (Indigo)
+        "#8A2BE2"  // 紫 (Violet)
     ];
+    // 虹色を2回繰り返す
+    const DISK_COLORS = [...RAINBOW_COLORS, ...RAINBOW_COLORS];
 
-    // --- レイアウト調整 ---
-    // ★★★ 円盤の高さを少し縮小 ★★★
-    const DISK_HEIGHT = 25;     // (旧 28)
-    const MIN_DISK_WIDTH = 40;
-    const DISK_WIDTH_STEP = 10; 
+    // --- レイアウト調整 (14段に対応) ---
+    // ★★★ 円盤の高さを14段でも収まるように調整 ★★★
+    const DISK_HEIGHT = 20;     // (旧 25)
+    const MIN_DISK_WIDTH = 30;  // (旧 40)
+    // ★★★ 14段でも画面幅に収まるようにステップを小さく ★★★
+    const DISK_WIDTH_STEP = 8;  // (旧 10)
 
     const PEG_WIDTH = 15;
-    // ★★★ 杭の高さを少し縮小 ★★★
-    const PEG_HEIGHT = 300;     // (旧 350)
-    // ★★★ Y座標を 600px 画面に合わせる ★★★
-    const PEG_Y_BOTTOM = 500;   // (旧 600)
+    const PEG_HEIGHT = 300;     
+    const PEG_Y_BOTTOM = 500;   
     
-    const PEG_X_CENTERS = [SCREEN_WIDTH * 0.2, SCREEN_WIDTH / 2, SCREEN_WIDTH * 0.8]; 
+    // ★★★ 杭のX座標を14段の幅に合わせて再配置 ★★★
+    const PEG_X_CENTERS = [SCREEN_WIDTH * 0.25, SCREEN_WIDTH / 2, SCREEN_WIDTH * 0.75]; // (旧 0.2, 0.5, 0.8)
+    
     const BASE_HEIGHT = 20;
 
     class HanoiGame {
@@ -129,7 +134,6 @@
         }
 
         initEvents() {
-            // (変更なし)
             this.canvas.addEventListener('click', (event) => {
                 const rect = this.canvas.getBoundingClientRect();
                 const clientX = event.clientX || (event.touches && event.touches[0].clientX);
@@ -149,7 +153,7 @@
         }
 
         getPegAtX(x) {
-            // (変更なし)
+            // ★★★ クリック範囲を杭の間隔で計算 ★★★
             const clickMargin = (PEG_X_CENTERS[1] - PEG_X_CENTERS[0]) / 2; 
             for (let i = 0; i < PEG_X_CENTERS.length; i++) {
                 if (Math.abs(x - PEG_X_CENTERS[i]) < clickMargin) {
@@ -160,7 +164,6 @@
         }
 
         handleClick(x) {
-            // (変更なし)
             if (this.isWin) {
                 this.setup();
                 return;
@@ -181,7 +184,6 @@
         }
 
         moveDisk(fromIdx, toIdx) {
-            // (変更なし)
             if (fromIdx === toIdx) return;
             const fromStack = this.pegs[fromIdx];
             const toStack = this.pegs[toIdx];
@@ -196,7 +198,6 @@
         }
 
         checkWin() {
-            // (変更なし)
             if (this.pegs[1].length === this.numDisks || this.pegs[2].length === this.numDisks) {
                 this.isWin = true;
                 this.totalTime = (performance.now() - this.startTime) / 1000;
@@ -209,7 +210,6 @@
         }
 
         drawText(text, x, y, font, color, align = "center") {
-            // (変更なし)
             this.ctx.fillStyle = color;
             this.ctx.font = font;
             this.ctx.textAlign = align;
@@ -220,10 +220,13 @@
         draw() {
             this.ctx.clearRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-            // --- 杭の描画 (変更なし) ---
+            // --- 杭の描画 (土台の幅を調整) ---
             this.ctx.fillStyle = COLOR_PEG;
             PEG_X_CENTERS.forEach(x_center => {
-                const baseWidth = (PEG_X_CENTERS[1] - PEG_X_CENTERS[0]) + (MIN_DISK_WIDTH / 2);
+                // ★★★ 14段の幅に合わせて土台の幅を計算 ★★★
+                const maxDiskWidth = MIN_DISK_WIDTH + (14 - 1) * DISK_WIDTH_STEP;
+                const baseWidth = maxDiskWidth + 20; // 最大幅 + 余白
+                
                 const baseLeft = x_center - baseWidth / 2;
                 const baseTop = PEG_Y_BOTTOM - BASE_HEIGHT;
                 this.ctx.fillRect(baseLeft, baseTop, baseWidth, BASE_HEIGHT);
@@ -233,7 +236,7 @@
                 this.ctx.fillRect(pegLeft, pegTop, PEG_WIDTH, PEG_HEIGHT);
             });
 
-            // --- 選択中ハイライトの描画 (変更なし) ---
+            // --- 選択中ハイライトの描画 ---
             if (this.selectedPeg !== null) {
                 const x_center = PEG_X_CENTERS[this.selectedPeg];
                 const hlWidth = PEG_WIDTH + 15;
@@ -246,7 +249,7 @@
                 this.ctx.strokeRect(hlLeft, hlTop, hlWidth, hlHeight);
             }
 
-            // --- 円盤の描画 (変更なし) ---
+            // --- 円盤の描画 ---
             this.pegs.forEach((stack, pegIdx) => {
                 const peg_x_center = PEG_X_CENTERS[pegIdx];
                 
@@ -255,6 +258,7 @@
                     const diskLeft = peg_x_center - diskWidth / 2;
                     const diskTop = PEG_Y_BOTTOM - BASE_HEIGHT - (diskIdx * DISK_HEIGHT) - DISK_HEIGHT;
                     
+                    // ★★★ 色を虹色x2でループさせる ★★★
                     const colorIndex = (diskSize - 1) % DISK_COLORS.length;
                     const color = DISK_COLORS[colorIndex];
                     
@@ -267,16 +271,15 @@
                 });
             });
 
-            // --- クリアメッセージの描画 (Y座標を調整) ---
+            // --- クリアメッセージの描画 ---
             if (this.isWin) {
                 const boxWidth = 450;
                 const boxHeight = 250;
                 
-                // ★★★ クリア画面を杭の中心に合わせる (Y座標 500基準) ★★★
-                const gameAreaTop = PEG_Y_BOTTOM - BASE_HEIGHT - PEG_HEIGHT; // 500 - 20 - 300 = 180
-                const gameAreaCenterY = gameAreaTop + (PEG_HEIGHT / 2);      // 180 + 150 = 330
+                const gameAreaTop = PEG_Y_BOTTOM - BASE_HEIGHT - PEG_HEIGHT; 
+                const gameAreaCenterY = gameAreaTop + (PEG_HEIGHT / 2);
                 const boxLeft = (SCREEN_WIDTH / 2) - boxWidth / 2;
-                const boxTop = gameAreaCenterY - (boxHeight / 2);          // 330 - 125 = 205
+                const boxTop = gameAreaCenterY - (boxHeight / 2);
                 
                 this.ctx.fillStyle = COLOR_WIN_BG;
                 this.ctx.fillRect(boxLeft, boxTop, boxWidth, boxHeight);
@@ -286,12 +289,14 @@
                 const timeStr = `${this.totalTime.toFixed(2)} 秒`;
                 this.drawText(`タイム: ${timeStr}`, SCREEN_WIDTH / 2, boxTop + 130, this.fontMedium, COLOR_TEXT);
 
+                // ★★★ 14段の最短手数を表示 ★★★
                 const resultText = `移動回数: ${this.moveCount} (最短: ${this.optimalMoves})`;
                 this.drawText(resultText, SCREEN_WIDTH / 2, boxTop + 180, this.fontMedium, COLOR_TEXT);
             }
         }
     }
 
+    // デフォルトは3枚で開始
     const game = new HanoiGame('gameCanvas', 3);
 
     document.getElementById('btn3').addEventListener('click', () => {
@@ -300,8 +305,9 @@
     document.getElementById('btn5').addEventListener('click', () => {
         game.changeDisks(5);
     });
-    document.getElementById('btn10').addEventListener('click', () => {
-        game.changeDisks(10);
+    // ★★★ 10枚ボタンを14枚ボタンに変更 ★★★
+    document.getElementById('btn14').addEventListener('click', () => {
+        game.changeDisks(14);
     });
 
 </script>
